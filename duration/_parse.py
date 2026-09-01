@@ -15,6 +15,16 @@ _UNIT_NAMES = sorted(_UNIT_MS, key=len, reverse=True)
 # converts. A duration component is ASCII decimal digits only.
 _DIGITS = frozenset("0123456789")
 
+# Widest a component's significant digits can be and still be within the
+# limit: the smallest unit is 1 ms, so anything wider than MAX_MILLISECONDS
+# itself is over the limit whatever unit follows it. Bounding here keeps int()
+# off oversized runs, which would otherwise escape as CPython's bare
+# "Exceeds the limit (4300 digits)" ValueError. The bound is the module's own
+# rather than sys.get_int_max_str_digits(), which an embedder can raise,
+# lower, or disable — that would make the failing length differ per process,
+# and disabling it would leave a multi-megabyte run to convert quadratically.
+_MAX_COMPONENT_DIGITS = len(str(MAX_MILLISECONDS))
+
 
 def parse_duration(text: str) -> Duration:
     """Parse a duration string into a Duration.
@@ -44,7 +54,12 @@ def parse_duration(text: str) -> Duration:
             raise DurationParseError(
                 text, f"expected a number but found {body[position:]!r}"
             )
-        value = int(body[start:position])
+        # Strip the padding before measuring, so an arbitrarily long run of
+        # leading zeros stays valid: "007s" and "0...01ms" name small values.
+        digits = body[start:position].lstrip("0")
+        if len(digits) > _MAX_COMPONENT_DIGITS:
+            raise DurationParseError(text, f"duration exceeds {MAX_MILLISECONDS} ms")
+        value = int(digits) if digits else 0
 
         unit = _read_unit(body, position)
         if unit is None:

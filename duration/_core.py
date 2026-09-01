@@ -27,6 +27,19 @@ class Duration:
 
     milliseconds: int
 
+    def __post_init__(self):
+        # bool is checked separately because it subclasses int, so a plain
+        # isinstance would accept Duration(True) as one millisecond. A flag
+        # arriving here is a caller bug, and equality would not surface it:
+        # Duration(1) == Duration(True) is already true.
+        if isinstance(self.milliseconds, bool) or not isinstance(
+            self.milliseconds, int
+        ):
+            raise TypeError(
+                "milliseconds must be an int, not "
+                f"{type(self.milliseconds).__name__}"
+            )
+
 
 class DurationParseError(ValueError):
     """Raised when a string is not a valid duration.
@@ -39,3 +52,9 @@ class DurationParseError(ValueError):
         self.text = text
         self.reason = reason
         super().__init__(f"{reason}: {text!r}")
+
+    def __reduce__(self):
+        # args holds only the formatted message, so the default exception
+        # reduction would replay it through a two-argument __init__ and raise
+        # TypeError instead of the parse failure. Rebuild from the parts.
+        return (self.__class__, (self.text, self.reason))

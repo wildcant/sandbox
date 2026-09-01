@@ -32,6 +32,15 @@ class ParseAcceptTest(unittest.TestCase):
     def test_leading_zeros_in_a_component(self):
         self.assert_parses("007s", 7_000)
 
+    def test_many_leading_zeros_are_not_a_long_component(self):
+        # Only the significant digits count towards the length bound, so a
+        # padded component stays valid however long the padding runs.
+        self.assert_parses("0" * 4290 + "1ms", 1)
+        self.assert_parses("0" * 100_000 + "30s", 30_000)
+
+    def test_all_zero_component(self):
+        self.assert_parses("0" * 5000 + "s", 0)
+
     def test_compound_two_units(self):
         self.assert_parses("1h30m", 5_400_000)
 
@@ -108,6 +117,23 @@ class ParseRejectTest(unittest.TestCase):
     def test_compound_summing_over_the_limit(self):
         # Each component is within the limit on its own; the sum is not.
         self.assert_rejects("1d9007199254740991ms")
+
+    def test_one_digit_past_the_limits_width(self):
+        # 10**16 is the first value too wide to be within the limit at all.
+        self.assert_rejects("1" + "0" * 16 + "ms")
+
+    def test_component_far_past_the_digit_bound(self):
+        # A digit run long enough to trip CPython's int() conversion limit
+        # must still come back as a contained DurationParseError.
+        self.assert_rejects("9" * 5000 + "ms")
+
+    def test_component_past_the_digit_bound_in_a_compound(self):
+        self.assert_rejects("1d" + "9" * 5000 + "ms")
+
+    def test_enormous_component_is_rejected_without_converting_it(self):
+        # Guards the bound itself: with int() left unguarded this either
+        # raises a bare ValueError or spends minutes on the conversion.
+        self.assert_rejects("9" * 1_000_000 + "ms")
 
     # Grammar decision 2: no whitespace anywhere.
     def test_internal_whitespace(self):

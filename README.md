@@ -73,6 +73,15 @@ parse_duration("1h30")
 `DurationParseError` subclasses `ValueError`, so an existing bad-input handler
 still catches it. The type raised is always `DurationParseError`.
 
+Constructing a `Duration` badly is a caller bug rather than a bad duration
+string, so it raises `TypeError`, never `DurationParseError`. `milliseconds`
+must be an `int`; `bool` is rejected too, even though it subclasses `int`.
+
+```python
+Duration(2.5)     # TypeError: milliseconds must be an int, not float
+Duration(True)    # TypeError: milliseconds must be an int, not bool
+```
+
 ## Tests
 
 ```
