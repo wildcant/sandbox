@@ -107,10 +107,10 @@ class DurationParseErrorTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    def test_all_lists_exactly_the_three_public_names(self):
+    def test_all_lists_exactly_the_four_public_names(self):
         self.assertEqual(
             sorted(duration.__all__),
-            ["Duration", "DurationParseError", "parse_duration"],
+            ["Duration", "DurationParseError", "format_duration", "parse_duration"],
         )
 
     def test_nothing_public_leaks_outside_all(self):
